@@ -119,7 +119,7 @@
         "type": "function",
         "z": "d959feb8.895ab",
         "name": "Filter TTN devaddr",
-        "func": "var p = msg.payload;\n\nvar phyPayload = Buffer.from(p.phyPayload,'base64');\n\nif(phyPayload.length > 5) {\n    var hdr = phyPayload[0];\n    var netid = phyPayload[4] >>> 1;\n    if((hdr === 0x40) && (netid === 0x13)) {\n        return msg;\n    }\n}\nreturn null;\n\n",
+        "func": "const TTN_NETID = 0x13;\nconst MType_Unconfirmed_Data_Up = 0x40;\nconst MType_Confirmed_Data_Up = 0x80;\n\nvar p = msg.payload;\n\nvar phyPayload = Buffer.from(p.phyPayload,'base64');\n\nif(phyPayload.length > 5) {\n    var hdr = phyPayload[0];\n    var netid = phyPayload[4] >>> 1;\n    if(((hdr === MType_Unconfirmed_Data_Up) || (hdr === MType_Confirmed_Data_Up)) && (netid === TTN_NETID)) {\n        return msg;\n    }\n}\nreturn null;\n\n",
         "outputs": 1,
         "noerr": 0,
         "x": 430,
