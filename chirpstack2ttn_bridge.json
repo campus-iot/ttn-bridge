@@ -1,0 +1,210 @@
+[
+    {
+        "id": "be541fce.56add",
+        "type": "mqtt in",
+        "z": "d959feb8.895ab",
+        "name": "Gateway Rx all",
+        "topic": "gateway/+/rx",
+        "qos": "2",
+        "datatype": "auto",
+        "broker": "f75893bf.fe0438",
+        "x": 140,
+        "y": 160,
+        "wires": [
+            [
+                "28958d6e.02c3a2"
+            ]
+        ]
+    },
+    {
+        "id": "28958d6e.02c3a2",
+        "type": "json",
+        "z": "d959feb8.895ab",
+        "name": "",
+        "property": "payload",
+        "action": "",
+        "pretty": false,
+        "x": 450,
+        "y": 160,
+        "wires": [
+            [
+                "5ef5b8de.f274"
+            ]
+        ]
+    },
+    {
+        "id": "87be9906.19406",
+        "type": "udp out",
+        "z": "d959feb8.895ab",
+        "name": "TTN EU Router",
+        "addr": "router.eu.thethings.network",
+        "iface": "",
+        "port": "1700",
+        "ipv": "udp4",
+        "outport": "1700",
+        "base64": false,
+        "multicast": "false",
+        "x": 680,
+        "y": 400,
+        "wires": []
+    },
+    {
+        "id": "4c3dce11.2546b",
+        "type": "udp in",
+        "z": "d959feb8.895ab",
+        "name": "TTN EU Router",
+        "iface": "",
+        "port": "1700",
+        "ipv": "udp4",
+        "multicast": "false",
+        "group": "",
+        "datatype": "buffer",
+        "x": 140,
+        "y": 520,
+        "wires": [
+            [
+                "6435fd83.7fc4f4"
+            ]
+        ]
+    },
+    {
+        "id": "e6612d62.3fb518",
+        "type": "debug",
+        "z": "d959feb8.895ab",
+        "name": "",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "x": 670,
+        "y": 320,
+        "wires": []
+    },
+    {
+        "id": "e2b3b051.a01b48",
+        "type": "function",
+        "z": "d959feb8.895ab",
+        "name": "to PUSH_DATA packet",
+        "func": "/*\n\n### 3.2. PUSH_DATA packet ###\n\nThat packet type is used by the gateway mainly to forward the RF packets \nreceived, and associated metadata, to the server.\n\n Bytes  | Function\n:------:|---------------------------------------------------------------------\n 0      | protocol version = 2\n 1-2    | random token\n 3      | PUSH_DATA identifier 0x00\n 4-11   | Gateway unique identifier (MAC address)\n 12-end | JSON object, starting with {, ending with }, see section 4\n\n*/\n\nfunction getRandomIntInclusive(min, max) {\n  min = Math.ceil(min);\n  max = Math.floor(max);\n  return Math.floor(Math.random() * (max - min + 1)) + min; //The maximum is inclusive and the minimum is inclusive \n}\n\nvar json = msg.payload;\n\nvar jsonStr = JSON.stringify(json);\n\n\nconst jsonBuf = Buffer.from(jsonStr);\n\nvar len = jsonStr.length;\n\nvar resBuf = Buffer.allocUnsafe(12+len);\n\nvar macBuf = Buffer.from(msg.mac, \"hex\");\n\nresBuf[0] = 2;\nresBuf[1] = getRandomIntInclusive(0, 255);\nresBuf[2] = getRandomIntInclusive(0, 255);\nresBuf[3] = 0x00;\n\nmacBuf.copy(resBuf,4,0,8);\n\njsonBuf.copy(resBuf,12,0,len);\n\nmsg.payload = resBuf\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 440,
+        "y": 400,
+        "wires": [
+            [
+                "87be9906.19406"
+            ]
+        ]
+    },
+    {
+        "id": "a5288a80.c63ee",
+        "type": "function",
+        "z": "d959feb8.895ab",
+        "name": "to RXPK",
+        "func": "var p = msg.payload;\nvar rx = p.rxInfo;\n\nvar rxpk = {\n\t\t\"time\":rx.time,\n\t\t\"tmst\":rx.timestamp,\n\t\t\"chan\":rx.channel,\n\t\t\"rfch\":rx.rfChain,\n\t\t\"freq\":rx.frequency / 1000000.0,\n\t\t\"stat\":rx.crcStatus,\n\t\t\"modu\":rx.dataRate.modulation,\n\t\t\"datr\":\"SF\"+rx.dataRate.spreadFactor+\"BW\"+rx.dataRate.bandwidth,\n\t\t\"codr\":rx.codeRate,\n\t\t\"rssi\":rx.rssi,\n\t\t\"lsnr\":rx.loRaSNR,\n\t\t\"size\":rx.size,\n\t\t\"data\": p.phyPayload\n\t};\n\nmsg.mac = rx.mac;\nmsg.payload = { rxpk:[ rxpk ] };\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 400,
+        "y": 320,
+        "wires": [
+            [
+                "e2b3b051.a01b48",
+                "e6612d62.3fb518"
+            ]
+        ]
+    },
+    {
+        "id": "5ef5b8de.f274",
+        "type": "function",
+        "z": "d959feb8.895ab",
+        "name": "Filter TTN devaddr",
+        "func": "var p = msg.payload;\n\nvar phyPayload = Buffer.from(p.phyPayload,'base64');\n\nif(phyPayload.length > 5) {\n    var hdr = phyPayload[0];\n    var netid = phyPayload[4] >>> 1;\n    if((hdr === 0x40) && (netid === 0x13)) {\n        return msg;\n    }\n}\nreturn null;\n\n",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 430,
+        "y": 240,
+        "wires": [
+            [
+                "a5288a80.c63ee"
+            ]
+        ]
+    },
+    {
+        "id": "54a582f5.1cd584",
+        "type": "debug",
+        "z": "d959feb8.895ab",
+        "name": "",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "x": 670,
+        "y": 520,
+        "wires": []
+    },
+    {
+        "id": "6435fd83.7fc4f4",
+        "type": "function",
+        "z": "d959feb8.895ab",
+        "name": "Process packet",
+        "func": "// Process packet sent by the TTN LoRa Network Server\n// https://github.com/Lora-net/packet_forwarder/blob/master/PROTOCOL.TXT\n\n// ### 3.2. PUSH_DATA packet ###\n// That packet type is used by the gateway mainly to forward the RF packets \n// received, and associated metadata, to the server.\nconst PUSH_ACK = 0x01;\n\n// ### 5.3. PULL_ACK packet ###\n// That packet type is used by the server to confirm that the network route is \n// open and that the server can send PULL_RESP packets at any time.\nconst PULL_ACK = 0x04;\n\n// ### 5.4. PULL_RESP packet ###\n// That packet type is used by the server to send RF packets and associated \n// metadata that will have to be emitted by the gateway.\nconst PULL_RESP = 0x03;\n\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 440,
+        "y": 520,
+        "wires": [
+            [
+                "54a582f5.1cd584"
+            ]
+        ]
+    },
+    {
+        "id": "947bdae9.8c1718",
+        "type": "comment",
+        "z": "d959feb8.895ab",
+        "name": "Chirpstack to TTN bridge",
+        "info": "Simple One-Way Bridge between Chirpstack and TTN\n\nThe bridge is a NodeRED flow.\n\nYou should register the gateways as \"legacy packet forwarder\" into your TTN console in order to enable the traffic.",
+        "x": 170,
+        "y": 60,
+        "wires": []
+    },
+    {
+        "id": "f75893bf.fe0438",
+        "type": "mqtt-broker",
+        "z": "",
+        "name": "campusiot",
+        "broker": "lora.campusiot.imag.fr",
+        "port": "8883",
+        "tls": "e038e18.c53e52",
+        "clientid": "",
+        "usetls": true,
+        "compatmode": true,
+        "keepalive": "60",
+        "cleansession": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthPayload": "",
+        "closeTopic": "",
+        "closeQos": "0",
+        "closePayload": "",
+        "willTopic": "",
+        "willQos": "0",
+        "willPayload": ""
+    },
+    {
+        "id": "e038e18.c53e52",
+        "type": "tls-config",
+        "z": "",
+        "name": "",
+        "cert": "",
+        "key": "",
+        "ca": "",
+        "certname": "",
+        "keyname": "",
+        "caname": "ca.crt",
+        "servername": "",
+        "verifyservercert": false
+    }
+]
