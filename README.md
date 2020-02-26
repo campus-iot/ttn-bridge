@@ -1,5 +1,5 @@
-# TTN Bridge
-Bridge between Chirpstack and TTN
+# Simple TTN Bridge
+Simple One-Way Bridge between Chirpstack and TTN
 
 The bridge is a NodeRED flow.
 
