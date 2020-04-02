@@ -1,0 +1,17 @@
+# Copyright (C) CampusIoT,  - All Rights Reserved
+# Written by CampusIoT Dev Team, 2016-2020
+
+version: "2"
+
+services:
+
+  nodered:
+    image: nodered/node-red-docker
+    environment:
+      NODE_OPTIONS: --max_old_space_size=512
+      FLOWS: flow.json
+    volumes:
+       - ./configuration/nodered/:/data/:rw
+    ports:
+      - 1880:1880
+    restart: unless-stopped
